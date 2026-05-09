@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Woordjes Leren</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">
+// ── Fullscreen ───────────────────────────────────────────────
+const fsBtn = $('fullscreenBtn');
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  const isFs = !!document.fullscreenElement;
+  $('fsIconEnter').style.display = isFs ? 'none' : 'block';
+  $('fsIconExit').style.display  = isFs ? 'block' : 'none';
+  fsBtn.title = isFs ? 'Volledig scherm verlaten' : 'Volledig scherm';
+});
+</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d1b2a;
+    --bg2:       #112236;
+    --bg3:       #16304d;
+    --blue:      #4fc3f7;
+    --blue-dim:  #29b6f6;
+    --blue-soft: rgba(79,195,247,0.12);
+    --blue-glow: rgba(79,195,247,0.25);
+    --text:      #e8f4fd;
+    --text-dim:  #7ba8c4;
+    --text-mute: #3d6a8a;
+    --green:     #4dd68c;
+    --green-bg:  rgba(77,214,140,0.12);
+    --red:       #f07070;
+    --red-bg:    rgba(240,112,112,0.12);
+    --radius:    10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    text-align: center;
+    padding: 32px 20px 22px;
+    background: var(--bg2);
+    border-bottom: 1px solid rgba(79,195,247,0.15);
+    position: relative;
+  }
+  header h1 { font-size: clamp(1.6rem,4vw,2.2rem); font-weight:900; color:var(--blue); letter-spacing:-0.5px; margin-bottom:4px; }
+  header p  { font-size:0.85rem; color:var(--text-mute); font-weight:600; }
+
+  #fullscreenBtn {
+    position: absolute;
+    top: 50%; right: 20px;
+    transform: translateY(-50%);
+    background: transparent;
+    border: 1.5px solid rgba(79,195,247,0.3);
+    border-radius: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 7px 9px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  #fullscreenBtn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+  #fullscreenBtn svg { display:block; }
+
+  /* When in fullscreen, make body fill screen nicely */
+  :fullscreen body, :-webkit-full-screen body { overflow-y: auto; }
+  :fullscreen #app, :-webkit-full-screen #app { padding-bottom: 80px; }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 48px;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid rgba(79,195,247,0.12);
+    border-radius: var(--radius);
+    padding: 22px 26px;
+    width: 100%;
+    max-width: 780px;
+  }
+  .card-title {
+    font-size:0.7rem; font-weight:800; color:var(--blue);
+    letter-spacing:2.5px; text-transform:uppercase;
+    margin-bottom:14px; padding-bottom:10px;
+    border-bottom:1px solid rgba(79,195,247,0.1);
+  }
+
+  #dropZone {
+    border: 2px dashed rgba(79,195,247,0.3);
+    border-radius: var(--radius);
+    padding: 38px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--blue-soft);
+  }
+  #dropZone:hover, #dropZone.drag { border-color:var(--blue); background:var(--blue-glow); }
+  #dropZone svg { opacity:0.5; margin-bottom:10px; }
+  #dropZone p { color:var(--text-dim); font-size:0.9rem; font-weight:600; }
+  #dropZone strong { color:var(--blue); font-weight:800; }
+  #fileInput { display:none; }
+  #fileName { margin-top:10px; font-size:0.8rem; color:var(--blue); font-weight:700; min-height:1.2em; }
+  #loadingMsg { display:none; text-align:center; color:var(--blue-dim); font-size:0.82rem; font-weight:700; padding:8px; }
+  #noWordsMsg { display:none; color:var(--red); font-size:0.82rem; font-weight:700; text-align:center; padding:8px; margin-top:8px; }
+
+  .dict-hint { font-size:0.75rem; color:var(--text-mute); font-weight:600; margin-bottom:8px; }
+  textarea {
+    width:100%; background:var(--bg); border:1px solid rgba(79,195,247,0.18);
+    border-radius:8px; color:var(--text); font-size:0.92rem;
+    font-family:'DM Sans',sans-serif; font-weight:500;
+    padding:12px 14px; resize:vertical; line-height:1.75;
+    transition:border-color 0.2s;
+  }
+  textarea:focus { outline:none; border-color:var(--blue); }
+  textarea::placeholder { color:var(--text-mute); }
+
+  #startBtn {
+    width:100%; max-width:780px; padding:16px;
+    background:var(--blue); color:var(--bg); border:none;
+    border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    font-size:1rem; font-weight:900; letter-spacing:1px;
+    cursor:pointer; transition:all 0.2s; text-transform:uppercase;
+  }
+  #startBtn:hover { background:#81d4fa; transform:translateY(-1px); }
+  #startBtn:disabled { opacity:0.35; cursor:default; transform:none; }
+
+  /* ── LEARN LAYOUT ── */
+  #learnSection { display:none; width:100%; max-width:1400px; }
+
+  .learn-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .learn-main { flex: 1; min-width: 0; }
+
+  /* Sidebar */
+  #textSidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--bg2);
+    border: 1px solid rgba(79,195,247,0.12);
+    border-radius: var(--radius);
+    padding: 16px 14px;
+    position: sticky;
+    top: 16px;
+    display: none;
+  }
+  #textSidebar .sidebar-title {
+    font-size:0.68rem; font-weight:800; color:var(--blue);
+    letter-spacing:2px; text-transform:uppercase;
+    margin-bottom:12px; padding-bottom:8px;
+    border-bottom:1px solid rgba(79,195,247,0.1);
+  }
+  .text-btn {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 1px solid rgba(79,195,247,0.15);
+    border-radius: 7px; color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 700;
+    padding: 9px 12px; margin-bottom: 7px; cursor: pointer;
+    transition: all 0.18s;
+  }
+  .text-btn:last-child { margin-bottom: 0; }
+  .text-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .text-btn.active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+  .text-btn-all { border-style: dashed; }
+
+  #progressBar { height:4px; background:rgba(79,195,247,0.1); border-radius:2px; margin-bottom:8px; overflow:hidden; }
+  #progressFill { height:100%; background:var(--blue); border-radius:2px; transition:width 0.5s ease; }
+
+  #statsRow {
+    display:flex; justify-content:space-between;
+    font-size:0.75rem; font-weight:700; color:var(--text-mute); margin-bottom:16px;
+  }
+  #statsRow span { color:var(--text-dim); }
+
+  #pdfViewer {
+    background:#e8e4dc; border:1px solid rgba(79,195,247,0.2);
+    border-radius:var(--radius); overflow:hidden; position:relative;
+    margin-bottom:16px; box-shadow:0 12px 50px rgba(0,0,0,0.5); width:100%;
+  }
+  #pdfCanvas { display:block; width:100%; transition:transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94); transform-origin:50% 50%; }
+  #highlight {
+    position:absolute; border:3px solid var(--blue); border-radius:6px;
+    background:rgba(79,195,247,0.18); box-shadow:0 0 0 3000px rgba(5,15,28,0.58);
+    pointer-events:none; opacity:0;
+    transition:opacity 0.45s ease, left 0.45s ease, top 0.45s ease, width 0.45s ease, height 0.45s ease;
+  }
+  #highlight.show { opacity:1; }
+  #pageInfo { position:absolute; top:10px; right:12px; font-size:0.68rem; font-weight:800; color:rgba(79,195,247,0.5); letter-spacing:1px; text-transform:uppercase; }
+
+  #answerPanel {
+    background:var(--bg2); border:1px solid rgba(79,195,247,0.12);
+    border-radius:var(--radius); padding:18px 20px; margin-bottom:12px;
+  }
+  #wordPrompt { font-size:1.7rem; font-weight:900; color:var(--blue); margin-bottom:3px; letter-spacing:-0.5px; }
+  #wordPromptSub { font-size:0.72rem; font-weight:800; color:var(--text-mute); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+  .answer-row { display:flex; gap:10px; }
+  #answerInput {
+    flex:1; background:var(--bg); border:2px solid rgba(79,195,247,0.2);
+    border-radius:8px; color:var(--text); font-size:1rem;
+    font-family:'DM Sans',sans-serif; font-weight:600; padding:11px 14px; transition:border-color 0.2s;
+  }
+  #answerInput:focus { outline:none; border-color:var(--blue); }
+  #answerInput:disabled { opacity:0.5; }
+  #checkBtn {
+    background:var(--blue); color:var(--bg); border:none; border-radius:8px;
+    font-family:'DM Sans',sans-serif; font-size:0.88rem; font-weight:900;
+    padding:11px 22px; cursor:pointer; letter-spacing:0.5px;
+    text-transform:uppercase; transition:all 0.2s; white-space:nowrap;
+  }
+  #checkBtn:hover { background:#81d4fa; }
+  #checkBtn:disabled { opacity:0.4; cursor:default; }
+
+  #feedback {
+    min-height:48px; border-radius:8px; padding:13px 16px;
+    font-size:0.92rem; font-weight:700;
+    display:flex; align-items:center; gap:10px;
+    opacity:0; transition:opacity 0.25s; margin-bottom:12px;
+  }
+  #feedback.show { opacity:1; }
+  #feedback.correct { background:var(--green-bg); border:1px solid rgba(77,214,140,0.35); color:var(--green); }
+  #feedback.wrong   { background:var(--red-bg);   border:1px solid rgba(240,112,112,0.35); color:var(--red); }
+  .fb-icon { font-size:1.1rem; flex-shrink:0; }
+
+  #controls { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .ctrl-btn {
+    border:2px solid rgba(79,195,247,0.2); background:transparent; color:var(--text-dim);
+    border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:800;
+    padding:9px 18px; cursor:pointer; letter-spacing:0.3px;
+    text-transform:uppercase; transition:all 0.2s;
+  }
+  .ctrl-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+  #nextBtn { display:none; background:var(--green-bg); border-color:rgba(77,214,140,0.4); color:var(--green); }
+  #nextBtn:hover { background:rgba(77,214,140,0.2); border-color:var(--green); }
+
+  #tochGoedBtn {
+    display:none;
+    background:rgba(255,180,50,0.1); border-color:rgba(255,180,50,0.4); color:#ffb432;
+  }
+  #tochGoedBtn:hover { background:rgba(255,180,50,0.2); }
+  .shortcut-hint {
+    font-size:0.66rem; opacity:0.7; font-weight:700;
+    background:rgba(255,180,50,0.18); border-radius:4px;
+    padding:1px 5px; margin-left:5px; letter-spacing:0.3px;
+  }
+
+  /* RESULT */
+  #resultSection {
+    display:none; text-align:center; padding:44px 30px;
+    background:var(--bg2); border:1px solid rgba(79,195,247,0.15);
+    border-radius:var(--radius); width:100%; max-width:780px;
+  }
+  #resultSection h2 { font-size:1.8rem; font-weight:900; color:var(--blue); margin-bottom:8px; }
+  #resultScore { font-size:3.8rem; font-weight:900; color:var(--blue); margin:10px 0; }
+  #resultMsg { color:var(--text-dim); font-weight:700; margin-bottom:20px; }
+  #missedList { text-align:left; margin-top:16px; }
+  #missedList h3 { font-size:0.7rem; font-weight:800; color:var(--red); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+  #missedList li { list-style:none; font-size:0.88rem; font-weight:600; color:var(--text-dim); padding:5px 0; border-bottom:1px solid rgba(79,195,247,0.07); }
+  #missedList li em { color:var(--blue); font-style:normal; font-weight:800; }
+
+  .result-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:22px; }
+  .result-btn {
+    padding:13px 28px; border:none; border-radius:var(--radius);
+    font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:900;
+    letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.2s;
+  }
+  #playAgainBtn { background:var(--blue); color:var(--bg); }
+  #playAgainBtn:hover { background:#81d4fa; }
+  #retryMissedBtn {
+    background:var(--red-bg); color:var(--red);
+    border:2px solid rgba(240,112,112,0.35); display:none;
+  }
+  #retryMissedBtn:hover { background:rgba(240,112,112,0.22); }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:rgba(79,195,247,0.25); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📖 PDF Woordjes Leren</h1>
+  <p>Upload een PDF · Vul de woordenlijst in · Oefen!</p>
+  <button id="fullscreenBtn" title="Volledig scherm">
+    <svg id="fsIconEnter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+      <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+    </svg>
+    <svg id="fsIconExit" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+      <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+    </svg>
+  </button>
+</header>
+
+<div id="app">
+
+  <!-- SETUP -->
+  <div id="setupSection" style="width:100%;max-width:780px;display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-title">① PDF uploaden</div>
+      <div id="dropZone">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4fc3f7" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/>
+          <polyline points="9 15 12 12 15 15"/>
+        </svg>
+        <p>Sleep je PDF hierheen of <strong>klik om te selecteren</strong></p>
+        <input type="file" id="fileInput" accept=".pdf">
+      </div>
+      <div id="fileName"></div>
+      <div id="loadingMsg">PDF wordt verwerkt…</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">② Woordenlijst</div>
+      <div class="dict-hint">Één woord per regel &nbsp;·&nbsp; woord = betekenis</div>
+      <textarea id="dictInput" rows="8" placeholder="gardiens = bewakers&#10;pelouse = grasveld&#10;grâce au = dankzij"></textarea>
+      <div id="noWordsMsg">⚠ Geen woorden gevonden in de PDF. Controleer de spelling.</div>
+    </div>
+
+    <button id="startBtn" disabled>Start met leren</button>
+  </div>
+
+  <!-- LEARN -->
+  <div id="learnSection">
+    <div class="learn-layout">
+
+      <!-- Sidebar -->
+      <div id="textSidebar">
+        <div class="sidebar-title">Tekst kiezen</div>
+        <div id="textBtnList"></div>
+      </div>
+
+      <!-- Main -->
+      <div class="learn-main">
+        <div id="progressBar"><div id="progressFill"></div></div>
+        <div id="statsRow">
+          <span>Woord <span id="statCurrent">1</span> van <span id="statTotal">0</span></span>
+          <span>✓ <span id="statCorrect">0</span> &nbsp;&nbsp; ✗ <span id="statWrong">0</span></span>
+        </div>
+
+        <div id="pdfViewer">
+          <canvas id="pdfCanvas"></canvas>
+          <div id="highlight"></div>
+          <div id="pageInfo"></div>
+        </div>
+
+        <div id="answerPanel">
+          <div id="wordPrompt">—</div>
+          <div id="wordPromptSub">Wat is de Nederlandse betekenis?</div>
+          <div class="answer-row">
+            <input id="answerInput" type="text" placeholder="Typ je antwoord…" autocomplete="off" />
+            <button id="checkBtn">Controleer</button>
+          </div>
+        </div>
+
+        <div id="feedback"><span class="fb-icon"></span><span id="feedbackText"></span></div>
+
+        <div id="controls">
+          <button class="ctrl-btn" id="nextBtn">Volgend woord →</button>
+          <button class="ctrl-btn" id="tochGoedBtn">✓ Toch goed<span class="shortcut-hint">SHIFT</span></button>
+          <button class="ctrl-btn" id="skipBtn">Sla over</button>
+          <button class="ctrl-btn" id="resetBtn">↩ Opnieuw instellen</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultSection">
+    <h2>Klaar!</h2>
+    <div id="resultScore"></div>
+    <p id="resultMsg"></p>
+    <div id="missedList"></div>
+    <div class="result-btns">
+      <button class="result-btn" id="retryMissedBtn">🔁 Oefen fouten opnieuw</button>
+      <button class="result-btn" id="playAgainBtn">Opnieuw oefenen</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc        = null;
+let allEntries    = [];   // all deduplicated, non-bold word occurrences
+let detectedTexts = [];   // [{label, number, startPage, endPage}]
+let activeFilter  = null; // null = all, or section label string
+let wordEntries   = [];   // entries for current session
+let queue         = [];
+let qi            = 0;
+let correctCnt    = 0;
+let wrongCnt      = 0;
+let missed        = [];
+let answered      = false;
+let lastWasWrong  = false;
+let currentVP     = null;
+
+const $ = id => document.getElementById(id);
+
+// ── Upload ──────────────────────────────────────────────────
+const dropZone = $('dropZone');
+dropZone.addEventListener('click', () => $('fileInput').click());
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+});
+$('fileInput').addEventListener('change', () => handleFile($('fileInput').files[0]));
+
+async function handleFile(file) {
+  if (!file || file.type !== 'application/pdf') { alert('Selecteer een PDF-bestand.'); return; }
+  $('fileName').textContent = '📄 ' + file.name;
+  $('loadingMsg').style.display = 'block';
+  $('startBtn').disabled = true;
+  const ab = await file.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({ data: ab }).promise;
+  $('loadingMsg').style.display = 'none';
+  $('startBtn').disabled = false;
+}
+
+// ── Parse dict ──────────────────────────────────────────────
+function parseDict(raw) {
+  const d = {};
+  raw.split('\n').forEach(line => {
+    const m = line.match(/^(.+?)\s*[=:]\s*(.+)$/);
+    if (m) d[m[1].trim().toLowerCase()] = m[2].trim();
+  });
+  return d;
+}
+
+// ── Detect "Tekst N" headings in PDF ───────────────────────
+async function detectTextSections() {
+  const sections = [];
+  const re = /^(tekst|text)\s*(\d+)/i;
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const page    = await pdfDoc.getPage(p);
+    const content = await page.getTextContent();
+    for (const item of content.items) {
+      if (!item.str || !item.str.trim()) continue;
+      const m = item.str.trim().match(re);
+      if (m) {
+        sections.push({ label: 'Tekst ' + m[2], number: parseInt(m[2]), startPage: p, endPage: pdfDoc.numPages });
+        break;
+      }
+    }
+  }
+  sections.sort((a, b) => a.startPage - b.startPage);
+  for (let i = 0; i < sections.length - 1; i++) {
+    sections[i].endPage = sections[i+1].startPage - 1;
+  }
+  return sections;
+}
+
+// ── Find words ───────────────────────────────────────────────
+// Prefers occurrences under a yellow PDF highlight annotation.
+// Falls back to first plain occurrence if no highlighted match found.
+async function findWords(dict, sections) {
+  const words = Object.keys(dict);
+
+  function sectionOf(page) {
+    if (!sections.length) return null;
+    for (const s of sections) {
+      if (page >= s.startPage && page <= s.endPage) return s.label;
+    }
+    return null;
+  }
+
+  // Get bounding quads of yellow Highlight annotations on a page (PDF user-space coords)
+  async function getHighlightRects(page) {
+    let anns = [];
+    try { anns = await page.getAnnotations(); } catch(e) { return []; }
+    const rects = [];
+    for (const ann of anns) {
+      if (ann.subtype !== 'Highlight') continue;
+      // colour check: yellow = R high, G high, B low (0-1 scale)
+      const c = ann.color;
+      if (c && !(c[0] > 0.4 && c[1] > 0.4 && c[2] < 0.5)) continue;
+      // quadPoints gives precise per-line quads [x1,y1,x2,y2,x3,y3,x4,y4, ...]
+      if (ann.quadPoints && ann.quadPoints.length) {
+        for (let i = 0; i < ann.quadPoints.length; i += 8) {
+          const xs = [ann.quadPoints[i],ann.quadPoints[i+2],ann.quadPoints[i+4],ann.quadPoints[i+6]];
+          const ys = [ann.quadPoints[i+1],ann.quadPoints[i+3],ann.quadPoints[i+5],ann.quadPoints[i+7]];
+          rects.push([Math.min(...xs)-2, Math.min(...ys)-2, Math.max(...xs)+2, Math.max(...ys)+2]);
+        }
+      } else if (ann.rect) {
+        const r = ann.rect;
+        rects.push([Math.min(r[0],r[2])-2, Math.min(r[1],r[3])-2, Math.max(r[0],r[2])+2, Math.max(r[1],r[3])+2]);
+      }
+    }
+    return rects;
+  }
+
+  function itemOverlapsRects(item, rects) {
+    if (!rects.length) return false;
+    const [,,,, ix, iy] = item.transform;
+    const iw = item.width || 0;
+    const ih = Math.abs(item.height) || 10;
+    for (const [x1, y1, x2, y2] of rects) {
+      if (ix < x2 && ix + iw > x1 && iy < y2 && iy + ih > y1) return true;
+    }
+    return false;
+  }
+
+  // best[seenKey] = candidate entry; we upgrade plain→highlighted if found
+  const best = {};
+
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const page     = await pdfDoc.getPage(p);
+    const content  = await page.getTextContent();
+    const secLabel = sectionOf(p);
+    const hlRects  = await getHighlightRects(page);
+
+    for (const item of content.items.filter(i => i.str && i.str.trim())) {
+      const highlighted = itemOverlapsRects(item, hlRects);
+      const lower = item.str.toLowerCase();
+
+      for (const word of words) {
+        const seenKey = word + '|' + (secLabel || '_');
+        // Already have a highlighted match — nothing can beat it
+        if (best[seenKey] && best[seenKey].highlighted) continue;
+
+        let idx = 0;
+        while (true) {
+          const pos = lower.indexOf(word, idx);
+          if (pos === -1) break;
+          idx = pos + 1;
+          const before = pos > 0 ? lower[pos-1] : ' ';
+          const after  = pos + word.length < lower.length ? lower[pos+word.length] : ' ';
+          if (/[a-záàâäéèêëíìîïóòôöúùûü']/i.test(before) || /[a-záàâäéèêëíìîïóòôöúùûü']/i.test(after)) continue;
+
+          const [,,,, x, y] = item.transform;
+          const cw = item.width / (item.str.length || 1);
+          const candidate = {
+            word, meaning: dict[word], page: p, section: secLabel, highlighted,
+            rect: { x: x + pos*cw, y, w: word.length*cw, h: Math.abs(item.height) || 12 }
+          };
+          // Store if no entry yet, or this one is highlighted and existing is not
+          if (!best[seenKey] || (!best[seenKey].highlighted && highlighted)) {
+            best[seenKey] = candidate;
+          }
+          break; // one match per item per word
+        }
+      }
+    }
+  }
+  return Object.values(best);
+}
+
+// ── Sidebar ─────────────────────────────────────────────────
+function buildSidebar(sections) {
+  const sidebar = $('textSidebar');
+  const list    = $('textBtnList');
+  list.innerHTML = '';
+
+  if (!sections.length) { sidebar.style.display = 'none'; return; }
+  sidebar.style.display = 'block';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'text-btn text-btn-all active';
+  allBtn.textContent = 'Alle teksten';
+  allBtn.dataset.label = '';
+  allBtn.addEventListener('click', () => selectText('', allBtn));
+  list.appendChild(allBtn);
+
+  for (const s of sections) {
+    const btn = document.createElement('button');
+    btn.className = 'text-btn';
+    btn.textContent = s.label;
+    btn.dataset.label = s.label;
+    btn.addEventListener('click', () => selectText(s.label, btn));
+    list.appendChild(btn);
+  }
+}
+
+function selectText(label, clickedBtn) {
+  activeFilter = label || null;
+  $('textBtnList').querySelectorAll('.text-btn').forEach(b => b.classList.remove('active'));
+  clickedBtn.classList.add('active');
+  startSession();
+}
+
+// ── Start ────────────────────────────────────────────────────
+$('startBtn').addEventListener('click', async () => {
+  if (!pdfDoc) return;
+  const dict = parseDict($('dictInput').value);
+  if (!Object.keys(dict).length) { alert('Vul de woordenlijst in.'); return; }
+  $('startBtn').disabled = true;
+  $('loadingMsg').style.display = 'block';
+  $('noWordsMsg').style.display = 'none';
+
+  detectedTexts = await detectTextSections();
+  allEntries    = await findWords(dict, detectedTexts);
+
+  $('loadingMsg').style.display = 'none';
+  $('startBtn').disabled = false;
+
+  if (!allEntries.length) { $('noWordsMsg').style.display = 'block'; return; }
+
+  buildSidebar(detectedTexts);
+  activeFilter = null;
+
+  $('setupSection').style.display = 'none';
+  $('learnSection').style.display = 'block';
+  startSession();
+});
+
+// entriesToUse: if provided, use those directly (e.g. retry missed)
+function startSession(entriesToUse) {
+  wordEntries = entriesToUse
+    ? entriesToUse
+    : (activeFilter ? allEntries.filter(e => e.section === activeFilter) : allEntries);
+
+  if (!wordEntries.length) { alert('Geen woorden gevonden voor deze tekst.'); return; }
+
+  queue = shuffle([...Array(wordEntries.length).keys()]);
+  qi = 0; correctCnt = 0; wrongCnt = 0; missed = [];
+  $('resultSection').style.display = 'none';
+  $('learnSection').style.display  = 'block';
+  $('statTotal').textContent = wordEntries.length;
+  showWord();
+}
+
+// ── Render page ──────────────────────────────────────────────
+async function renderPage(pageNum) {
+  const page   = await pdfDoc.getPage(pageNum);
+  const canvas = $('pdfCanvas');
+  const vp0    = page.getViewport({ scale: 1 });
+  const scale  = canvas.parentElement.clientWidth / vp0.width;
+  const vp     = page.getViewport({ scale });
+  canvas.width  = vp.width;
+  canvas.height = vp.height;
+  canvas.style.width  = '100%';
+  canvas.style.height = 'auto';
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  currentVP = vp;
+  $('pageInfo').textContent = `p. ${pageNum} / ${pdfDoc.numPages}`;
+  return vp;
+}
+
+// ── Highlight & zoom ─────────────────────────────────────────
+function positionHighlight(rect, vp) {
+  const canvas  = $('pdfCanvas');
+  const hl      = $('highlight');
+  const canvasW = canvas.offsetWidth  || canvas.width;
+  const canvasH = canvas.offsetHeight || canvas.height;
+  const sX = canvasW / canvas.width;
+  const sY = canvasH / canvas.height;
+
+  const [cx1, cy1] = vp.convertToViewportPoint(rect.x, rect.y);
+  const [cx2, cy2] = vp.convertToViewportPoint(rect.x + rect.w, rect.y + rect.h);
+
+  const x = Math.min(cx1, cx2) * sX;
+  const y = Math.min(cy1, cy2) * sY;
+  const w = Math.abs(cx2 - cx1) * sX;
+  const h = Math.abs(cy2 - cy1) * sY;
+
+  const padX = Math.max(48, w * 0.6);
+  const padY = Math.max(20, h * 0.5);
+
+  hl.style.left   = (x - padX) + 'px';
+  hl.style.top    = (y - padY) + 'px';
+  hl.style.width  = (w + padX * 2) + 'px';
+  hl.style.height = (h + padY * 2) + 'px';
+
+  const zoom = Math.min(Math.max((canvasW * 0.18) / (w || 1), 1.2), 2.8);
+  const cx   = (x + w / 2) / canvasW * 100;
+  const cy   = (y + h / 2) / canvasH * 100;
+  canvas.style.transformOrigin = `${cx}% ${cy}%`;
+  canvas.style.transform = `scale(${zoom})`;
+}
+
+// ── Show word ────────────────────────────────────────────────
+async function showWord() {
+  answered = false; lastWasWrong = false;
+  const fb = $('feedback');
+  fb.className = '';
+  $('feedbackText').textContent = '';
+  fb.querySelector('.fb-icon').textContent = '';
+  $('nextBtn').style.display     = 'none';
+  $('tochGoedBtn').style.display = 'none';
+  $('answerInput').value    = '';
+  $('answerInput').disabled = false;
+  $('checkBtn').disabled    = false;
+  $('highlight').classList.remove('show');
+  $('pdfCanvas').style.transform = 'scale(1)';
+
+  const entry = wordEntries[queue[qi]];
+  $('wordPrompt').textContent   = entry.word;
+  $('statCurrent').textContent  = qi + 1;
+  $('statCorrect').textContent  = correctCnt;
+  $('statWrong').textContent    = wrongCnt;
+  $('progressFill').style.width = (qi / wordEntries.length * 100) + '%';
+
+  const vp = await renderPage(entry.page);
+  setTimeout(() => {
+    positionHighlight(entry.rect, vp);
+    $('highlight').classList.add('show');
+  }, 120);
+  $('answerInput').focus();
+}
+
+// ── Check answer ─────────────────────────────────────────────
+function normalize(s) { return s.toLowerCase().trim().replace(/[.,!?;'"«»]/g, ''); }
+
+function checkAnswer() {
+  if (answered) { advance(); return; }
+  const entry = wordEntries[queue[qi]];
+  const user  = normalize($('answerInput').value);
+
+  // Empty → reveal answer, count as wrong, second Enter advances
+  if (!user) {
+    answered = true; lastWasWrong = true;
+    wrongCnt++;
+    missed.push(entry);
+    $('answerInput').disabled = true;
+    $('checkBtn').disabled    = true;
+    const fb = $('feedback');
+    fb.className = 'show wrong';
+    fb.querySelector('.fb-icon').textContent = '✗';
+    $('feedbackText').textContent = `Juist antwoord: "${entry.meaning}"`;
+    $('tochGoedBtn').style.display = 'inline-block';
+    $('statWrong').textContent = wrongCnt;
+    $('nextBtn').style.display = 'inline-block';
+    return;
+  }
+
+  const ok = entry.meaning.split(/[,\/]/).map(normalize).some(a => user === a || a.includes(user) || user.includes(a));
+  answered = true; lastWasWrong = !ok;
+  $('answerInput').disabled = true;
+  $('checkBtn').disabled    = true;
+  const fb = $('feedback');
+  if (ok) {
+    correctCnt++;
+    fb.className = 'show correct';
+    fb.querySelector('.fb-icon').textContent = '✓';
+    $('feedbackText').textContent = `Correct! "${entry.meaning}"`;
+    $('tochGoedBtn').style.display = 'none';
+  } else {
+    wrongCnt++;
+    missed.push(entry);
+    fb.className = 'show wrong';
+    fb.querySelector('.fb-icon').textContent = '✗';
+    $('feedbackText').textContent = `Juist antwoord: "${entry.meaning}"`;
+    $('tochGoedBtn').style.display = 'inline-block';
+  }
+  $('statCorrect').textContent = correctCnt;
+  $('statWrong').textContent   = wrongCnt;
+  $('nextBtn').style.display   = 'inline-block';
+}
+
+$('checkBtn').addEventListener('click', checkAnswer);
+
+// ── Keyboard ─────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ($('learnSection').style.display === 'none') return;
+
+  // Shift = Toch goed
+  if (e.key === 'Shift') {
+    if ($('tochGoedBtn').style.display !== 'none') {
+      e.preventDefault();
+      tochGoed();
+    }
+    return;
+  }
+
+  if (e.key !== 'Enter') return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'BUTTON') return;
+  if (!answered) checkAnswer();
+  else advance();
+});
+
+// ── Toch goed ─────────────────────────────────────────────────
+// Corrects score and immediately moves to next word
+function tochGoed() {
+  if (!answered || !lastWasWrong) return;
+  wrongCnt--; correctCnt++;
+  const entry = wordEntries[queue[qi]];
+  missed = missed.filter(e => e !== entry);
+  lastWasWrong = false;
+  $('statCorrect').textContent = correctCnt;
+  $('statWrong').textContent   = wrongCnt;
+  advance(); // go straight to next word
+}
+
+$('tochGoedBtn').addEventListener('click', tochGoed);
+
+// ── Advance ──────────────────────────────────────────────────
+async function advance() {
+  qi++;
+  if (qi >= wordEntries.length) { showResult(); return; }
+  await showWord();
+}
+
+$('nextBtn').addEventListener('click', () => advance());
+$('skipBtn').addEventListener('click', async () => {
+  if (!answered) { missed.push(wordEntries[queue[qi]]); wrongCnt++; }
+  await advance();
+});
+$('resetBtn').addEventListener('click', () => {
+  $('highlight').classList.remove('show');
+  $('pdfCanvas').style.transform = 'scale(1)';
+  $('learnSection').style.display  = 'none';
+  $('resultSection').style.display = 'none';
+  const s = $('setupSection');
+  s.style.display = 'flex'; s.style.flexDirection = 'column'; s.style.gap = '16px';
+});
+
+// ── Result ───────────────────────────────────────────────────
+function showResult() {
+  $('highlight').classList.remove('show');
+  $('pdfCanvas').style.transform = 'scale(1)';
+  $('learnSection').style.display  = 'none';
+  $('resultSection').style.display = 'block';
+  const pct = Math.round(correctCnt / wordEntries.length * 100);
+  $('resultScore').textContent = `${correctCnt} / ${wordEntries.length}`;
+  $('resultMsg').textContent   = pct >= 80 ? '🎉 Uitstekend!' : pct >= 50 ? '👍 Goed bezig!' : '📚 Blijf oefenen!';
+  $('missedList').innerHTML = missed.length
+    ? '<h3>Nog te oefenen</h3><ul>' + missed.map(e => `<li><em>${e.word}</em> = ${e.meaning}</li>`).join('') + '</ul>'
+    : '<p style="color:var(--green);margin-top:12px;font-weight:800">Alle woorden goed! 🌟</p>';
+  $('retryMissedBtn').style.display = missed.length ? 'inline-block' : 'none';
+}
+
+// Retry only the missed words
+$('retryMissedBtn').addEventListener('click', () => {
+  const toRetry = [...missed];
+  $('resultSection').style.display = 'none';
+  startSession(toRetry);
+});
+
+// Full replay
+$('playAgainBtn').addEventListener('click', () => {
+  $('resultSection').style.display = 'none';
+  startSession();
+});
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+</script>
+</body>
+</html>
