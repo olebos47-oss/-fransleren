@@ -131,11 +131,13 @@
 
   /* ── Drop zone ── */
   #dropZone {
+    display: block;
     border: 2px dashed rgba(0,122,255,0.3);
     border-radius: var(--radius);
     padding: 32px 20px; text-align: center; cursor: pointer;
     background: rgba(0,122,255,0.04);
     transition: all 0.2s;
+    position: relative;
   }
   #dropZone:hover, #dropZone.drag {
     border-color: var(--blue); background: var(--blue-lt);
@@ -355,16 +357,16 @@
   .answer-row { display: flex; gap: 8px; }
   #answerInput {
     flex: 1; background: rgba(255,255,255,0.75); border: 1px solid rgba(0,0,0,0.1);
-    border-radius: var(--radius-sm); color: var(--text); font-size: 0.95rem;
-    font-family: 'Inter', sans-serif; font-weight: 500; padding: 10px 12px;
+    border-radius: var(--radius-sm); color: var(--text); font-size: 1.25rem;
+    font-family: 'Inter', sans-serif; font-weight: 600; padding: 13px 16px;
     outline: none; transition: all 0.2s;
   }
   #answerInput:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.12); }
   #answerInput:disabled { opacity: 0.5; }
   #checkBtn {
     background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm);
-    font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700;
-    padding: 10px 18px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
+    font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 700;
+    padding: 13px 22px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
     box-shadow: 0 3px 10px rgba(0,122,255,0.25);
   }
   #checkBtn:hover { background: #0066DD; }
@@ -481,8 +483,7 @@
 
     <div class="card glass">
       <div class="card-title">PDF uploaden</div>
-      <input type="file" id="fileInput" accept=".pdf" style="display:none">
-      <div id="dropZone">
+      <label id="dropZone" for="fileInput">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="1.5" style="opacity:0.5;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
@@ -490,7 +491,8 @@
           <polyline points="9 15 12 12 15 15"/>
         </svg>
         <p>Sleep je PDF hierheen of <strong>klik om te selecteren</strong></p>
-      </div>
+        <input type="file" id="fileInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+      </label>
       <div id="fileName"></div>
       <div id="loadingMsg">PDF wordt verwerkt…</div>
     </div>
@@ -729,7 +731,6 @@ $('saveBtn').addEventListener('click', async () => {
 
 // ── Upload ───────────────────────────────────────────────────
 const dropZone = $('dropZone');
-dropZone.addEventListener('click', (e) => { e.stopPropagation(); $('fileInput').value = ''; $('fileInput').click(); });
 dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
