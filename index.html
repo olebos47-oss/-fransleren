@@ -36,11 +36,11 @@
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     background: linear-gradient(135deg, #e8edf5 0%, #dce6f0 30%, #e2dff5 60%, #d8eae0 100%);
     background-attachment: fixed;
     color: var(--text);
-    overflow-x: hidden;
   }
 
   /* Decorative blobs */
@@ -73,13 +73,14 @@
   /* ── Header ── */
   header {
     display: flex; align-items: center; justify-content: center;
-    padding: 18px 24px;
+    padding: 12px 24px;
     background: rgba(255,255,255,0.65);
     backdrop-filter: blur(30px) saturate(200%);
     -webkit-backdrop-filter: blur(30px) saturate(200%);
     border-bottom: 1px solid rgba(255,255,255,0.8);
     position: sticky; top: 0; z-index: 100;
     box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.06);
+    flex-shrink: 0;
   }
   .header-logo {
     font-size: 1.05rem; font-weight: 800; letter-spacing: -0.3px; color: var(--text);
@@ -108,8 +109,14 @@
   /* ── App shell ── */
   #app {
     max-width: 2600px; margin: 0 auto;
-    padding: 28px 20px 60px;
-    display: flex; flex-direction: column; gap: 14px;
+    padding: 16px 16px 0;
+    display: flex; flex-direction: column; gap: 12px;
+    /* allow setup section to scroll, but learn is full viewport */
+  }
+  #app:has(#learnSection[style*="block"]) {
+    overflow: hidden;
+    height: calc(100vh - 58px); /* header height */
+    padding-bottom: 0;
   }
 
   /* ── Cards ── */
@@ -213,25 +220,32 @@
   #startBtn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,122,255,0.35); }
   #startBtn:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
 
-  /* ── LEARN SECTION ── */
+  /* ── LEARN SECTION — full viewport, no scroll ── */
   #learnSection { display: none; width: 100%; }
 
-  /* New grid: sidebar | pdf | progress / answer panel full-width below */
+  /*
+   * Grid layout (fits 100vh, no scroll):
+   *
+   *  Row 1:  [ textSidebar? ] [ pdfViewer — wide ] [ progressBar — narrow ]
+   *  Row 2:  [ textSidebar? ] [ answerPanel ——————— spanning pdf+progress  ]
+   */
   .learn-layout {
     display: grid;
-    grid-template-columns: auto 1fr 56px;
-    grid-template-rows: auto auto;
-    gap: 14px;
-    align-items: start;
+    grid-template-columns: auto 1fr 40px;
+    grid-template-rows: 1fr auto;
+    gap: 10px;
+    height: calc(100vh - 90px);
   }
 
-  /* Text sidebar (optional, left) */
+  /* Text sidebar (left, optional) */
   #textSidebar {
-    grid-column: 1; grid-row: 1;
-    width: 160px; flex-shrink: 0;
-    border-radius: var(--radius-lg); padding: 16px 14px;
-    position: sticky; top: 76px; display: none;
-    align-self: flex-start;
+    grid-column: 1; grid-row: 1 / 3;
+    width: 150px;
+    border-radius: var(--radius-lg); padding: 14px 12px;
+    display: none;
+    align-self: start;
+    overflow-y: auto;
+    max-height: 100%;
   }
   #textSidebar .sidebar-title {
     font-size: 0.65rem; font-weight: 700; color: var(--text3);
@@ -252,13 +266,13 @@
   .text-btn-all { border-style: dashed; border-color: rgba(0,0,0,0.13); }
   .text-btn-all.active { border-style: solid; }
 
-  /* PDF viewer — fills available width in grid column 2 */
+  /* PDF viewer — row 1 col 2, fills all available height */
   #pdfViewer {
     grid-column: 2; grid-row: 1;
     border-radius: var(--radius-lg);
     position: relative;
-    height: calc(100vh - 110px);
     width: 100%;
+    height: 100%;
     box-shadow: var(--shadow-lg);
     background: #f5f0e8;
     overflow: hidden;
@@ -270,51 +284,57 @@
     transform-origin: 50% 50%;
   }
 
-  /* Vertical progress sidebar — grid column 3, right of PDF */
+  /* Progress bar — row 1 col 3, same height as PDF */
   #progressSidebar {
     grid-column: 3; grid-row: 1;
-    width: 56px; flex-shrink: 0;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 0; position: sticky; top: 76px;
-    align-self: flex-start;
+    width: 40px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
   }
-
-  /* Bottom row — spans all 3 columns */
-  .learn-bottom {
-    grid-column: 1 / -1; grid-row: 2;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-
-  /* Word counter */
-  #wordCounter {
-    text-align: right;
-    font-size: 0.8rem; font-weight: 600; color: var(--text3);
-  }
-  #wordCounter span { color: var(--text2); font-weight: 700; }
   #progressTrack {
-    width: 14px;
-    height: calc(100vh - 230px);
-    border-radius: 7px;
+    width: 12px;
+    flex: 1;
+    border-radius: 6px;
     background: rgba(0,0,0,0.08);
     position: relative; overflow: hidden;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   #progressFill {
     position: absolute; bottom: 0; left: 0; width: 100%;
-    border-radius: 7px;
+    border-radius: 6px;
     background: linear-gradient(to top, var(--green), #30D158);
     transition: height 0.6s cubic-bezier(0.34,1.56,0.64,1);
     height: 0%;
   }
   .prog-stat {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    margin-bottom: 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    margin-bottom: 6px; flex-shrink: 0;
   }
   .prog-stat:last-child { margin-bottom: 0; }
-  .prog-stat-icon { font-size: 1rem; line-height: 1; }
-  .prog-stat-num { font-size: 0.82rem; font-weight: 800; }
+  .prog-stat-icon { font-size: 0.9rem; line-height: 1; }
+  .prog-stat-num { font-size: 0.78rem; font-weight: 800; }
   #statCorrect { color: var(--green); }
   #statWrong   { color: var(--red); }
+
+  /* Answer row — row 2, spans col 2+3 (pdf + progress) */
+  .learn-bottom {
+    grid-column: 2 / 4; grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Word counter */
+  #wordCounter {
+    flex-shrink: 0;
+    font-size: 0.78rem; font-weight: 600; color: var(--text3);
+    text-align: right;
+  }
+  #wordCounter span { color: var(--text2); font-weight: 700; }
   #highlight {
     position: absolute; border: 2.5px solid var(--blue); border-radius: 6px;
     background: rgba(0,122,255,0.12); box-shadow: 0 0 0 3000px rgba(0,0,0,0.42);
@@ -328,47 +348,49 @@
     letter-spacing: 0.8px; text-transform: uppercase;
   }
 
-  /* Answer panel */
-  #answerPanel { border-radius: var(--radius-lg); padding: 20px 22px; }
-  #wordPrompt { font-size: 1.9rem; font-weight: 800; color: var(--text); margin-bottom: 2px; letter-spacing: -0.5px; }
-  #wordPromptSub { font-size: 0.72rem; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+  /* Answer panel — compact, flex-shrink:0 so it doesn't squish */
+  #answerPanel { border-radius: var(--radius-lg); padding: 16px 18px; flex-shrink: 0; }
+  #wordPrompt { font-size: 1.6rem; font-weight: 800; color: var(--text); margin-bottom: 2px; letter-spacing: -0.5px; }
+  #wordPromptSub { font-size: 0.68rem; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
   .answer-row { display: flex; gap: 8px; }
   #answerInput {
     flex: 1; background: rgba(255,255,255,0.75); border: 1px solid rgba(0,0,0,0.1);
-    border-radius: var(--radius-sm); color: var(--text); font-size: 1rem;
-    font-family: 'Inter', sans-serif; font-weight: 500; padding: 12px 14px;
+    border-radius: var(--radius-sm); color: var(--text); font-size: 0.95rem;
+    font-family: 'Inter', sans-serif; font-weight: 500; padding: 10px 12px;
     outline: none; transition: all 0.2s;
   }
   #answerInput:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.12); }
   #answerInput:disabled { opacity: 0.5; }
   #checkBtn {
     background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm);
-    font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 700;
-    padding: 12px 22px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
+    font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700;
+    padding: 10px 18px; cursor: pointer; transition: all 0.18s; white-space: nowrap;
     box-shadow: 0 3px 10px rgba(0,122,255,0.25);
   }
   #checkBtn:hover { background: #0066DD; }
   #checkBtn:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 
-  /* Feedback */
+  /* Feedback — compact, no min-height */
   #feedback {
-    min-height: 50px; border-radius: var(--radius-sm); padding: 13px 16px;
-    font-size: 0.92rem; font-weight: 600;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 0.88rem; font-weight: 600;
     display: flex; align-items: center; gap: 10px;
     opacity: 0; transition: opacity 0.22s;
+    min-height: 0;
   }
   #feedback.show { opacity: 1; }
   #feedback.correct { background: var(--green-lt); border: 1px solid rgba(52,199,89,0.3); color: #1a7a36; }
   #feedback.wrong   { background: var(--red-lt);   border: 1px solid rgba(255,59,48,0.25); color: #c0392b; }
   .fb-icon { font-size: 1rem; flex-shrink: 0; }
 
-  /* Controls */
-  #controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; }
+  /* Controls — tight under feedback, flex-shrink:0 */
+  #controls { flex-shrink: 0; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-start; }
   .ctrl-btn {
     border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.65);
     backdrop-filter: blur(10px); color: var(--text2);
-    border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
-    padding: 9px 16px; cursor: pointer; transition: all 0.18s;
+    border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 600;
+    padding: 8px 13px; cursor: pointer; transition: all 0.18s;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .ctrl-btn:hover { border-color: rgba(0,0,0,0.18); background: rgba(255,255,255,0.85); }
@@ -379,9 +401,9 @@
   #tochGoedBtn { display:none; background: rgba(255,159,10,0.1); border-color: rgba(255,159,10,0.35); color: #8a5500; }
   #tochGoedBtn:hover { background: rgba(255,159,10,0.18); }
   .shortcut-hint {
-    font-size: 0.65rem; opacity: 0.65; font-weight: 700;
+    font-size: 0.62rem; opacity: 0.65; font-weight: 700;
     background: rgba(255,159,10,0.15); border-radius: 4px;
-    padding: 1px 5px; margin-left: 5px; letter-spacing: 0.3px;
+    padding: 1px 4px; margin-left: 4px; letter-spacing: 0.3px;
   }
 
   /* ── Correct flash overlay ── */
@@ -525,7 +547,7 @@
         </div>
       </div>
 
-      <!-- Bottom row: answer panel + feedback + controls -->
+      <!-- Answer + feedback + controls below PDF and progress bar -->
       <div class="learn-bottom">
 
         <div id="wordCounter">Woord <span id="statCurrent">1</span> van <span id="statTotal">0</span></div>
@@ -547,6 +569,7 @@
           <button class="ctrl-btn" id="skipBtn">Sla over</button>
           <button class="ctrl-btn" id="resetBtn">↩ Opnieuw instellen</button>
         </div>
+
       </div>
 
     </div>
@@ -885,33 +908,35 @@ async function renderPage(pageNum) {
   const page   = await pdfDoc.getPage(pageNum);
   const canvas = $('pdfCanvas');
   const viewer = $('pdfViewer');
-  const dpr    = Math.min(window.devicePixelRatio || 1, 3);
   const vp0    = page.getViewport({ scale: 1 });
 
   const cssW = viewer.clientWidth;
   const cssH = viewer.clientHeight;
 
-  // Fit page inside viewer (A4 box), letterbox if needed
+  // Scale to fit viewer box (letterbox)
   const scale = Math.min(cssW / vp0.width, cssH / vp0.height);
 
-  // Render at device pixel ratio for sharpness
-  const vpHi = page.getViewport({ scale: scale * dpr });
+  // Oversample at 4× for near-original sharpness
+  const QUALITY = 4;
+  const vpHi = page.getViewport({ scale: scale * QUALITY });
   canvas.width  = vpHi.width;
   canvas.height = vpHi.height;
 
-  // CSS size = physical pixels / dpr
-  const cssCW = vpHi.width  / dpr;
-  const cssCH = vpHi.height / dpr;
+  // CSS display size = viewer fit size
+  const cssCW = vpHi.width  / QUALITY;
+  const cssCH = vpHi.height / QUALITY;
   canvas.style.width  = cssCW + 'px';
   canvas.style.height = cssCH + 'px';
 
-  // Centre canvas inside viewer (letterbox)
+  // Centre inside viewer
   canvas.style.left = Math.round((cssW - cssCW) / 2) + 'px';
   canvas.style.top  = Math.round((cssH - cssCH) / 2) + 'px';
 
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vpHi }).promise;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport: vpHi }).promise;
 
-  // Store CSS-scale viewport for highlight positioning
+  // CSS-scale viewport for highlight coordinate math
   currentVP = page.getViewport({ scale });
   $('pageInfo').textContent = `p. ${pageNum} / ${pdfDoc.numPages}`;
   return currentVP;
