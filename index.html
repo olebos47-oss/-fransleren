@@ -896,12 +896,23 @@ $('startBtn').addEventListener('click', async () => {
 function startSession(entriesToUse) {
   wordEntries = entriesToUse ? entriesToUse : (activeFilter ? allEntries.filter(e => e.section === activeFilter) : allEntries);
   if (!wordEntries.length) { alert('Geen woorden gevonden voor deze tekst.'); return; }
-  // Sort by page number, then by vertical position (top to bottom), then horizontal (left to right)
-  wordEntries = [...wordEntries].sort((a, b) => {
-    if (a.page !== b.page) return a.page - b.page;
-    if (Math.abs(a.rect.y - b.rect.y) > 2) return b.rect.y - a.rect.y; // PDF y-axis is bottom-up
-    return a.rect.x - b.rect.x;
-  });
+  // Sort for two-column layout: per page, determine column midpoint from word positions,
+  // then sort left column (top→bottom) before right column (top→bottom)
+  const pageGroups = {};
+  for (const e of wordEntries) {
+    if (!pageGroups[e.page]) pageGroups[e.page] = [];
+    pageGroups[e.page].push(e);
+  }
+  const sorted = [];
+  for (const page of Object.keys(pageGroups).map(Number).sort((a,b)=>a-b)) {
+    const entries = pageGroups[page];
+    const xs = entries.map(e => e.rect.x);
+    const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const leftCol  = entries.filter(e => e.rect.x <= midX).sort((a,b) => b.rect.y - a.rect.y);
+    const rightCol = entries.filter(e => e.rect.x >  midX).sort((a,b) => b.rect.y - a.rect.y);
+    sorted.push(...leftCol, ...rightCol);
+  }
+  wordEntries = sorted;
   queue = [...Array(wordEntries.length).keys()];
   qi = 0; correctCnt = 0; wrongCnt = 0; missed = [];
   $('resultSection').style.display = 'none';
