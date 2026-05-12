@@ -896,7 +896,13 @@ $('startBtn').addEventListener('click', async () => {
 function startSession(entriesToUse) {
   wordEntries = entriesToUse ? entriesToUse : (activeFilter ? allEntries.filter(e => e.section === activeFilter) : allEntries);
   if (!wordEntries.length) { alert('Geen woorden gevonden voor deze tekst.'); return; }
-  queue = shuffle([...Array(wordEntries.length).keys()]);
+  // Sort by page number, then by vertical position (top to bottom), then horizontal (left to right)
+  wordEntries = [...wordEntries].sort((a, b) => {
+    if (a.page !== b.page) return a.page - b.page;
+    if (Math.abs(a.rect.y - b.rect.y) > 2) return b.rect.y - a.rect.y; // PDF y-axis is bottom-up
+    return a.rect.x - b.rect.x;
+  });
+  queue = [...Array(wordEntries.length).keys()];
   qi = 0; correctCnt = 0; wrongCnt = 0; missed = [];
   $('resultSection').style.display = 'none';
   $('learnSection').style.display  = 'block';
